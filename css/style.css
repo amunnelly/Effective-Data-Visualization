@@ -1,0 +1,27 @@
+@import url(https://fonts.googleapis.com/css?family=Exo+2:400,700);
+
+h2{ font-family: 'Exo 2', Helvetica, Arial, sans-serif;
+    font-weight: 700;
+    text-indent: 60px;
+}
+
+h3{ font-family: 'Exo 2', Helvetica, Arial, sans-serif;
+    font-weight: 400;
+    text-indent: 60px;
+}
+
+.tick {
+    font-size: 10px;
+    font-family: sans-serif;
+    color: blue;
+}
+
+rect:hover {
+    fill:blue;
+}
+
+.axis-label {
+    font-size: 14px;
+    font-family: 'Exo 2', Helvetica, Arial, sans-serif;
+    color: blue;
+}
