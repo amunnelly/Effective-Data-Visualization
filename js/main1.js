@@ -198,7 +198,7 @@ function drawGraph(myData){
 }
 
 function draw() {
-    d3.csv('ua_day6_2008.csv', function(d){
+    d3.csv('data/ua_day6_2008.csv', function(d){
         d['DepDelay'] = +d['DepDelay'];
         return d;
     }, drawGraph);
