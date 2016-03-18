@@ -41,12 +41,11 @@ function drawGraph(myData){
         return b.values[0].values.averageDelay - a.values[0].values.averageDelay;
     });
 
-
     // Create arrays from the nested data to make it easier to set the axes later
-    // var numberOfFlights = [];
-    // myNestedData.forEach(function(d){
-    //         numberOfFlights.push(d.values[0].values.flights);
-    //     });
+    var numberOfFlights = [];
+    myNestedData.forEach(function(d){
+            numberOfFlights.push(d.values[0].values.flights);
+        });
 
     var airports = [];
     myNestedData.forEach(function (d) {
@@ -55,7 +54,7 @@ function drawGraph(myData){
         }
     })
 
-    var barWidth = (heightMyGraph + barGap*airports.length) / airports.length;
+    var barWidth = heightMyGraph / (airports.length - barGap);
 
 
     // We have to filter here because the longest delay doesn't have enough
@@ -77,9 +76,8 @@ function drawGraph(myData){
 
 
     var myColors = d3.scale.linear()
-                    .domain([d3.min(averageDepartureDelay), d3.max(averageDepartureDelay)])
-                    .range(['RoyalBlue', 'DodgerBlue']);
-    var tempColor; // used below for mouse hover effects
+                    .domain([d3.min(numberOfFlights), d3.max(numberOfFlights)])
+                    .range(['orange', 'red']);
 
     // Create a tooltip
     var tooltip = d3.select('body')
@@ -122,8 +120,8 @@ function drawGraph(myData){
             })
             // We don't want too many flights coming back, and neither do we
             // want delays less than zero.
-            .style('fill', function (d){
-                return myColors(d.values[0].values.averageDelay);
+            .style('fill', function(d){
+                return myColors(d.values[0].values.flights);
             })
             .attr('y', function(d,i){
                 return i*(barWidth+barGap);
@@ -142,13 +140,7 @@ function drawGraph(myData){
                             'font-style': 'italic'})
                 tooltip.html(niceTooltip(d))
                     .style({"left":(d3.event.pageX)+'px',
-                            "top":(d3.event.pageY)+'px'})
-                // tempColor = this.style.fill;
-                d3.select(this).attr('opacity', 0.5)
-            })
-            .on('mouseout', function(d){
-                d3.select(this).attr('opacity', 1)
-                tooltip.transition().style('opacity',0)
+                            "top":(d3.event.pageY)+'px'});
             });
 
         // Creating the axes
@@ -214,8 +206,8 @@ function drawGraph(myData){
     // Tooltip formatting
     function niceTooltip(datum){
         return datum.values[0].key + "<br/>"
-        // + "Flights: "
-        // +commaFormatter(datum.values[0].values.flights)+ "<br/>"
+        + "Flights: "
+        +commaFormatter(datum.values[0].values.flights)+ "<br/>"
         + "Average Delay: "
         + decimalFormatter(datum.values[0].values.averageDelay) +" minutes.";
     }
@@ -225,7 +217,7 @@ function drawGraph(myData){
 
 // The initial loading of the data
 function draw() {
-    d3.csv('data_final.csv', function(d){
+    d3.csv('/data/ua_day6_2008_names.csv', function(d){
         d['DepDelay'] = +d['DepDelay'];
         return d;
     }, drawGraph);
