@@ -2,12 +2,12 @@
 
 h2{ font-family: 'Exo 2', Helvetica, Arial, sans-serif;
     font-weight: 700;
-    text-indent: 60px;
+    text-indent: 50px;
 }
 
 h3{ font-family: 'Exo 2', Helvetica, Arial, sans-serif;
     font-weight: 400;
-    text-indent: 60px;
+    text-indent: 50px;
 }
 
 .tick {
@@ -16,11 +16,7 @@ h3{ font-family: 'Exo 2', Helvetica, Arial, sans-serif;
     color: blue;
 }
 
-rect:hover {
-    fill:blue;
-}
-
-.axis-label {
+.axis-label, .speedLineLabel {
     font-size: 14px;
     font-family: 'Exo 2', Helvetica, Arial, sans-serif;
     color: blue;

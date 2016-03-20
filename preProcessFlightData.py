@@ -6,40 +6,47 @@ Created on Tue Mar 08 14:19:37 2016
 """
 
 import pandas as pd
-from collections import defaultdict
+import matplotlib.pyplot as plt
+import json
 
 #Read in original data
 original = pd.read_csv('2008.csv')
-
-#Group by Origin, and then count each group
-byOrigin = original.groupby('Origin')
-counter = defaultdict(int)
-
-for a, b in byOrigin:
-    counter[a] = b['Origin'].count()
+with open('airports.json') as f:
+    airports = json.load(f)
     
-#Map the group counts to the original data frame
-original['counter'] = original['Origin'].map(lambda x: counter[x])
+def airport_name_finder(iata):
+    '''
+    (str) - (str)
+    Returns the name of an airport when
+    given the airports IATA code
+    '''
+    temp = 0
+    while temp < len(airports):
+        if airports[temp]['iata'] == iata:
+            return airports[temp]['name']
+        temp += 1
+    return iata
 
-#Create a new data frame with the number of flights over a threshold
-#number - 15,000 in this case.
-#processed = original[original['counter'] > original.counter.quantile(0.5)]
-#print processed.Origin.value_counts()
-#Write the new data frame to file
-#processed.to_csv("2008_processed.csv")
 
+myAirport = original[original.Dest == 'LAS']
+myAirport['name'] = myAirport['Origin'].apply(airport_name_finder)
+myAirport.to_csv('vegasTraffic.csv')
+myAirportForBlocksDotOrg = myAirport[['Origin',
+                                     'Distance',
+                                     'name',
+                                     'AirTime']]
+myAirportForBlocksDotOrg.to_csv('vegasTrafficBlocks.csv')
 
-#southwest = original[original['UniqueCarrier'] == 'WN']
-#southwest.to_csv('2008_southwest.csv')
-
-#Group by carrier and count the airports associated with each
-#carriers = original.groupby('UniqueCarrier')
-#for a, b in carriers:
-#    print a, b.Origin.nunique()
+byDestination = myAirport.groupby('Origin')
+destination_time_distance = {'origin':[],
+                             'time': [],
+                            'distance':[]}
+                            
+for a, b in byDestination:
+    destination_time_distance['origin'].append(a)
+    destination_time_distance['time'].append(b.AirTime.mean())
+    destination_time_distance['distance'].append(b.Distance.mean())
     
-#Select Skywest, IATA callsign 'OO'
-ua = original[original['UniqueCarrier'] == 'UA']
-ua.to_csv('UnitedAirlines_2008.csv')
+ea_df = pd.DataFrame(destination_time_distance)
+plt.scatter(ea_df.distance, ea_df.time)
 
-shorter_ua = ua[ua.DayOfWeek == 6]
-shorter_ua.to_csv('ua_day6_2008.csv')

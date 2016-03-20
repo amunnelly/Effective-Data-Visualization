@@ -1,19 +1,18 @@
 // Basic dimensions
 
-var margin = {top: 50,
-        bottom: 10,
+var margin = {top: 10,
+        bottom: 50,
         left: 50,
         right: 10};
 
-var heightMyCanvas = 1000;
-var widthMyCanvas = 650;
+var heightMyCanvas = 650;
+var widthMyCanvas = 1000;
 var widthMyGraph = widthMyCanvas - margin.left - margin.right;
 var heightMyGraph = heightMyCanvas - margin.top - margin.bottom;
 
-var barGap = 0.25;
-var commaFormatter = d3.format(',');
+
 var decimalFormatter = d3.format('0.2f');
-airportFlightLimit = 50;
+var minimumTime = 121;
 
 // The function that draws the graph
 
@@ -29,57 +28,67 @@ function drawGraph(myData){
                     })
                     .rollup(function (leaves) {
                         var flights = leaves.length;
-                        var averageDelay = d3.mean(leaves, function(d){
-                            return d['DepDelay'];
+                        var airTime = d3.mean(leaves, function(d){
+                            return d['AirTime'];
+                        })
+                        var distance = d3.mean(leaves, function(d){
+                            return d['Distance'];
                             })
+                        var speed = d3.mean(leaves, function(d){
+                            if (d['AirTime'] > 0){
+                            return (d['Distance'] / d['AirTime']) * 60;
+                        }})
                         return {"flights": flights,
-                                "averageDelay": averageDelay};
+                        "airTime": airTime,
+                        "distance": distance,
+                        "speed": speed}
                     })
                     .entries(myData);
     
     myNestedData.sort(function (a,b) {
-        return b.values[0].values.averageDelay - a.values[0].values.averageDelay;
+        return b.values[0].values.distance - a.values[0].values.distance;
     });
 
+    // Convenience arrays for creating the x and y scales
 
-    // Create arrays from the nested data to make it easier to set the axes later
-    // var numberOfFlights = [];
-    // myNestedData.forEach(function(d){
-    //         numberOfFlights.push(d.values[0].values.flights);
-    //     });
-
-    var airports = [];
-    myNestedData.forEach(function (d) {
-        if (d.values[0].values.flights > airportFlightLimit){
-            airports.push(d.key);
-        }
+    var flightCount = [];
+    myNestedData.forEach(function(d){
+        flightCount.push(d.values[0].values.flights);
     })
 
-    var barWidth = (heightMyGraph + barGap*airports.length) / airports.length;
 
-
-    // We have to filter here because the longest delay doesn't have enough
-    // flights associated with it to make the graph, and this messes up the axes.
-    var averageDepartureDelay = [];
+    var flightDistance = [];
     myNestedData.forEach(function (d) {
-        if(d.values[0].values.flights > airportFlightLimit){
-        averageDepartureDelay.push(d.values[0].values.averageDelay);
-    }});
+        if(d.values[0].values.airTime < minimumTime)
+        flightDistance.push(d.values[0].values.distance);
+    });
+
+    var flightTime = [];
+    myNestedData.forEach(function (d){
+        if(d.values[0].values.airTime < minimumTime){
+        flightTime.push(d.values[0].values.airTime);
+    }})
+
+    var flightSpeed = []
+    myNestedData.forEach(function(d){
+        flightSpeed.push(d.values[0].values.speed);
+    })
+
+    var averageSpeed = d3.mean(flightSpeed); //divide by 60 for speed per minute
 
     // Create x, y and color scales
     var xScale = d3.scale.linear()
-                .domain([0, d3.max(averageDepartureDelay)])
+                .domain([0, d3.max(flightDistance)])
                 .range([0, widthMyGraph]);
 
-    var yScale = d3.scale.ordinal()
-                    .domain(airports)
-                    .rangePoints([0, heightMyGraph]);
+    var yScale = d3.scale.linear()
+                    .domain([0, d3.max(flightTime)])
+                    .range([heightMyGraph, 0]);
 
 
     var myColors = d3.scale.linear()
-                    .domain([d3.min(averageDepartureDelay), d3.max(averageDepartureDelay)])
-                    .range(['RoyalBlue', 'DodgerBlue']);
-    var tempColor; // used below for mouse hover effects
+                    .domain([d3.min(flightSpeed), d3.max(flightSpeed)])
+                    .range(['red', 'white']);
 
     // Create a tooltip
     var tooltip = d3.select('body')
@@ -112,29 +121,27 @@ function drawGraph(myData){
                 .attr('class', 'theGraphData');
 
     // Drawing the graph
-    myGraph.selectAll('rect')
+    myGraph.selectAll('circle')
             .data(myNestedData)
             .enter()
-            .append('rect')
-            .filter(function (d) {
-                return (d.values[0].values.flights > airportFlightLimit
-                    && d.values[0].values.averageDelay > 0);
+            .append('circle')
+            .filter(function(d){
+                return d.values[0].values.airTime < minimumTime;
             })
-            // We don't want too many flights coming back, and neither do we
-            // want delays less than zero.
-            .style('fill', function (d){
-                return myColors(d.values[0].values.averageDelay);
+            .attr('cx', function(d){
+                return xScale(d.values[0].values.distance);
             })
-            .attr('y', function(d,i){
-                return i*(barWidth+barGap);
+            .attr('cy', function(d){
+                return yScale(d.values[0].values.airTime);
             })
-            .attr('x', function(d){
-                return 0;
-            })
-            .attr('width', function(d){
-                return xScale(d.values[0].values.averageDelay);
+            .attr('r', function(d){
+                return 5;
                 })
-            .attr('height', barWidth)
+            .style('fill', function(d){
+                return myColors(d.values[0].values.speed);
+            })
+            .attr('stroke', 'blue')
+            .attr('strok-width', '1px')
             .on('mouseover', function(d){
                 tooltip.transition()
                     .style('opacity', 0.9)
@@ -144,42 +151,74 @@ function drawGraph(myData){
                     .style({"left":(d3.event.pageX)+'px',
                             "top":(d3.event.pageY)+'px'})
                 // tempColor = this.style.fill;
-                d3.select(this).attr('opacity', 0.5)
+                d3.select(this).attr('r', 15)
             })
             .on('mouseout', function(d){
-                d3.select(this).attr('opacity', 1)
+                d3.select(this).attr('r', 5)
                 tooltip.transition().style('opacity',0)
             });
 
+    // Drawing the average speed line
+
+    var averageSpeedLine = d3.svg.line()
+    .x(function(d){
+        return xScale(d);
+    })
+    .y(function(d){
+        return yScale(d/(averageSpeed/60));
+    });
+
+    var speedLineLabel = myGraph.append('g')
+                                .append('text')
+                                .attr('class', 'speedLineLabel')
+                                .attr('text-anchor', 'start')
+
+
+    speedLineLabel.text('Average Speed: ' + decimalFormatter(averageSpeed) + ' mph.')
+                    .attr('transform', 'translate('
+                        +'25'+
+                        ','
+                        +(heightMyGraph - 20)+
+                        ') rotate(-35)');
+
+    flightDistance.unshift(0) // Allow the average speed line to start at origin
+    myGraph.append('path')
+            .attr('d', averageSpeedLine(flightDistance))
+            .attr('stroke', 'blue')
+            .attr('stroke-width', 1)
+            .attr('stroke-dasharray', ("10, 5"))
+            .attr('fill', 'red');
+
+
         // Creating the axes
         var yAxis = d3.svg.axis()
-        .scale(yScale)
-        .orient('left');
+                        .scale(yScale)
+                        .orient('left');
 
         myCanvas.append('g')
-        .attr('class', 'y-axis')
-        .attr('transform', 'translate('
-        +margin.left+
-        ','
-        +margin.top+
-        ')')
-        .call(yAxis)
-        .selectAll('path')
-        .style({'fill': 'none',
-                'stroke': 'Blue'});
+                .attr('class', 'y-axis')
+                .attr('transform', 'translate('
+                +margin.left+
+                ','
+                +margin.top+
+                ')')
+                .call(yAxis)
+                .selectAll('path')
+                .style({'fill': 'none',
+                        'stroke': 'Blue'});
 
         // Add the text label for the Y axis
         myCanvas.append("text")
-            .attr('class', 'axis-label')
-            .attr("transform", "rotate(-90)")
-            .attr("y", 15)
-            .attr("x", -(heightMyCanvas/10))
-            .style("text-anchor", "middle")
-            .text("Airports");
+                .attr('class', 'axis-label')
+                .attr("transform", "rotate(-90)")
+                .attr("y", 15)
+                .attr("x", -(heightMyCanvas/3))
+                .style("text-anchor", "middle")
+                .text("Flight Time (minutes)");
 
     var xAxis = d3.svg.axis()
                     .scale(xScale)
-                    .orient('top')
+                    .orient('bottom')
                     .ticks(20);
 
     var myX = myCanvas.append('g')
@@ -187,7 +226,7 @@ function drawGraph(myData){
                         .attr('transform', 'translate('
                         +margin.left+
                         ','
-                        +margin.top+
+                        +(heightMyGraph+margin.top)+
                         ')')
                         .call(xAxis)
 
@@ -195,38 +234,37 @@ function drawGraph(myData){
         .attr('text-anchor', 'middle');
         
     myX.selectAll('path')
-    .style({'fill': 'none',
-            'stroke': 'Blue'})
+        .style({'fill': 'none',
+                'stroke': 'Blue'})
 
     // Add the text label for the x axis
     myCanvas.append("text")
-        .attr('class', 'axis-label')
-        .attr("transform", "translate("
-         + (widthMyCanvas / 3) +
-         " ,"
-          + (margin.top - 25) +
-          ")")
-        .style("text-anchor", "start")
-        .attr('color', 'blue')
-        .text("Average Departure Delay (minutes)");
+            .attr('class', 'axis-label')
+            .attr("transform", "translate("
+             + (widthMyCanvas / 3) +
+             " ,"
+              + (heightMyCanvas - 15) +
+              ")")
+            .style("text-anchor", "start")
+            .attr('color', 'blue')
+            .text("Flight Distance (miles)");
 
 
     // Tooltip formatting
     function niceTooltip(datum){
         return datum.values[0].key + "<br/>"
-        // + "Flights: "
-        // +commaFormatter(datum.values[0].values.flights)+ "<br/>"
-        + "Average Delay: "
-        + decimalFormatter(datum.values[0].values.averageDelay) +" minutes.";
+        + "Average speed: "
+        + decimalFormatter(datum.values[0].values.speed) +" mph.";
     }
 
 
-}
+} // end of drawGraph function
 
 // The initial loading of the data
 function draw() {
-    d3.csv('data_final.csv', function(d){
-        d['DepDelay'] = +d['DepDelay'];
+    d3.csv('data/data_final.csv', function(d){
+        d['Distance'] = +d['Distance'];
+        d['AirTime'] = +d['AirTime'];
         return d;
     }, drawGraph);
 }
